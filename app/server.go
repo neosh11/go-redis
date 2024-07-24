@@ -5,9 +5,15 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 )
 
-var memory = make(map[string]string)
+type Value struct {
+	value  string
+	expiry int
+}
+
+var memory = make(map[string]Value)
 
 func getEndOfLine(startingIndex int, data []byte) (int, error) {
 	index := startingIndex
@@ -68,7 +74,7 @@ func redisProtocolParser(data []byte) (command string, args []string, err error)
 		return
 	}
 
-	if numbParamsInt > 3 {
+	if numbParamsInt > 10 {
 		err = fmt.Errorf("Only 1-2 parameters allowed at the moment")
 	}
 
@@ -125,12 +131,21 @@ func processResponse(req net.Conn) error {
 			_, err = req.Write([]byte("-ERR wrong number of arguments for 'set' command\r\n"))
 			return err
 		}
-		// store the value
-		memory[args[0]] = args[1]
-
+		expiry := -1
+		if len(args) >= 4 && args[2] == "px" {
+			ex, lErr := strconv.Atoi(args[3])
+			if lErr != nil {
+				_, err = req.Write([]byte("-ERR invalid expiry value\r\n"))
+				return err
+			}
+			expiry = int((int64)(time.Now().UnixMilli())) + ex
+		}
+		memory[args[0]] = Value{
+			value:  args[1],
+			expiry: expiry,
+		}
 		_, err = req.Write([]byte("+OK\r\n"))
 	} else if command == "GET" {
-
 		if len(args) < 1 {
 			_, err = req.Write([]byte("-ERR wrong number of arguments for 'get' command\r\n"))
 			return err
@@ -139,7 +154,18 @@ func processResponse(req net.Conn) error {
 		if !ok {
 			_, err = req.Write([]byte("$-1\r\n"))
 		} else {
-			_, err = req.Write([]byte("$" + strconv.Itoa(len(value)) + "\r\n" + value + "\r\n"))
+			if value.expiry != -1 {
+				fmt.Println("Expiry: ", value.expiry, " Time: ", int((int64)(time.Now().UnixMilli())))
+				if value.expiry < int((int64)(time.Now().UnixMilli())) {
+					delete(memory, args[0])
+					_, err = req.Write([]byte("$-1\r\n"))
+					if err != nil {
+						return err
+					}
+					return nil
+				}
+			}
+			_, err = req.Write([]byte("$" + strconv.Itoa(len(value.value)) + "\r\n" + value.value + "\r\n"))
 		}
 	} else {
 		_, err = req.Write([]byte("-ERR unknown command '" + command + "'\r\n"))
