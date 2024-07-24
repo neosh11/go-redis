@@ -7,7 +7,17 @@ import (
 )
 
 func processResponse(req net.Conn) error {
-	_, err := req.Write([]byte("+PONG\r\n"))
+	// read the data from the connection
+	data := make([]byte, 1024)
+	read, err := req.Read(data)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Received: ", string(data[:read]))
+
+	// send back the response: +PONG\r\n
+	_, err = req.Write([]byte("+PONG\r\n"))
 	return err
 }
 
