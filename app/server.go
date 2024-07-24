@@ -190,10 +190,20 @@ func handleConnection(req net.Conn) {
 }
 
 func main() {
+	// get port from command line --port flag
+	port := "6379"
+	flags := os.Args[1:]
+	if len(flags) > 0 && flags[0] == "--port" {
+		if len(flags) < 2 {
+			fmt.Println("Missing port number")
+			os.Exit(1)
+		}
+		port = flags[1]
+	}
 	fmt.Println("Logs from your program will appear here!")
-	l, err := net.Listen("tcp", "0.0.0.0:6379")
+	l, err := net.Listen("tcp", "0.0.0.0:"+port)
 	if err != nil {
-		fmt.Println("Failed to bind to port 6379")
+		fmt.Println("Failed to bind to port", port)
 		os.Exit(1)
 	}
 	// Close the listener when the application closes.
