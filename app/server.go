@@ -14,12 +14,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	for {
-		req, err := l.Accept()
+	// Close the listener when the application closes.
+	defer func(l net.Listener) {
+		err := l.Close()
 		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
-			os.Exit(1)
+			fmt.Println("Error closing listener: ", err.Error())
 		}
-		req.Write([]byte("+PONG\r\n"))
+	}(l)
+
+	req, err := l.Accept()
+	if err != nil {
+		fmt.Println("Error accepting connection: ", err.Error())
+		os.Exit(1)
 	}
+
+	for {
+		_, err = req.Write([]byte("+PONG\r\n"))
+		if err != nil {
+			fmt.Println("Error writing to connection: ", err.Error())
+			return
+		}
+	}
+
 }
