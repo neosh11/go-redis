@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+var memory = make(map[string]string)
+
 func getEndOfLine(startingIndex int, data []byte) (int, error) {
 	index := startingIndex
 	for index < len(data) && data[index-1] != '\r' && data[index] != '\n' {
@@ -44,7 +46,7 @@ func processParameter(startIndex int, data []byte) (value string, EOL int, err e
 	return string(data[sizeEOL+1 : EOL-1]), EOL, nil
 }
 
-func redisProtocolParser(data []byte) (command string, arg1 string, err error) {
+func redisProtocolParser(data []byte) (command string, args []string, err error) {
 	//*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
 	//	Read the first line to get the number of arguments
 	// check if the first character is *
@@ -66,7 +68,7 @@ func redisProtocolParser(data []byte) (command string, arg1 string, err error) {
 		return
 	}
 
-	if numbParamsInt > 2 {
+	if numbParamsInt > 3 {
 		err = fmt.Errorf("Only 1-2 parameters allowed at the moment")
 	}
 
@@ -80,18 +82,20 @@ func redisProtocolParser(data []byte) (command string, arg1 string, err error) {
 	if numbParamsInt == 1 {
 		return
 	}
-	if numbParamsInt == 2 {
+
+	args = make([]string, 0)
+	for i := 1; i < numbParamsInt; i++ {
 		// Read the second parameter
-		arg1, EOL, err = processParameter(EOL+1, data)
-		if err != nil {
+		value, localEol, localErr := processParameter(EOL+1, data)
+		EOL = localEol
+		if localErr != nil {
 			err = fmt.Errorf("failed to process parameter", err)
 			return
 		}
+		args = append(args, value)
 	}
-	fmt.Println("Command: ", command)
 	return
 }
-
 func processResponse(req net.Conn) error {
 	// read the data from the connection
 	data := make([]byte, 1024)
@@ -100,7 +104,9 @@ func processResponse(req net.Conn) error {
 		return err
 	}
 
-	command, arg1, err := redisProtocolParser(data[:read])
+	fmt.Println("Command: ", string(data[:read]))
+
+	command, args, err := redisProtocolParser(data[:read])
 	if err != nil {
 		return err
 	}
@@ -108,10 +114,32 @@ func processResponse(req net.Conn) error {
 	if command == "PING" {
 		_, err = req.Write([]byte("+PONG\r\n"))
 	} else if command == "ECHO" {
-		if arg1 == "" {
+		if len(args) == 0 {
 			_, err = req.Write([]byte("$0\r\n\r\n"))
 		} else {
-			_, err = req.Write([]byte("$" + strconv.Itoa(len(arg1)) + "\r\n" + arg1 + "\r\n"))
+			_, err = req.Write([]byte("$" + strconv.Itoa(len(args[0])) + "\r\n" + args[0] + "\r\n"))
+		}
+	} else if command == "SET" {
+		// check first 2 arguments
+		if len(args) < 2 {
+			_, err = req.Write([]byte("-ERR wrong number of arguments for 'set' command\r\n"))
+			return err
+		}
+		// store the value
+		memory[args[0]] = args[1]
+
+		_, err = req.Write([]byte("+OK\r\n"))
+	} else if command == "GET" {
+
+		if len(args) < 1 {
+			_, err = req.Write([]byte("-ERR wrong number of arguments for 'get' command\r\n"))
+			return err
+		}
+		value, ok := memory[args[0]]
+		if !ok {
+			_, err = req.Write([]byte("$-1\r\n"))
+		} else {
+			_, err = req.Write([]byte("$" + strconv.Itoa(len(value)) + "\r\n" + value + "\r\n"))
 		}
 	} else {
 		_, err = req.Write([]byte("-ERR unknown command '" + command + "'\r\n"))
