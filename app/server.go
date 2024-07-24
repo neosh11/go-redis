@@ -21,6 +21,23 @@ func processResponse(req net.Conn) error {
 	return err
 }
 
+func handleConnection(req net.Conn) {
+	defer func() {
+		err := req.Close()
+		if err != nil {
+			fmt.Println("Error closing connection: ", err.Error())
+		}
+	}()
+
+	for {
+		err := processResponse(req)
+		if err != nil {
+			fmt.Println("Error processing request: ", err.Error())
+			return
+		}
+	}
+}
+
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
@@ -28,7 +45,6 @@ func main() {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
-
 	// Close the listener when the application closes.
 	defer func(l net.Listener) {
 		err := l.Close()
@@ -37,17 +53,12 @@ func main() {
 		}
 	}(l)
 
-	req, err := l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
-	}
-
 	for {
-		err := processResponse(req)
+		req, err := l.Accept()
 		if err != nil {
-			fmt.Println("Error processing request: ", err.Error())
+			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
+		go handleConnection(req)
 	}
 }
