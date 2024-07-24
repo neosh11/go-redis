@@ -8,11 +8,7 @@ import (
 
 func processResponse(req net.Conn) error {
 	_, err := req.Write([]byte("+PONG\r\n"))
-	if err != nil {
-		fmt.Println("Error writing to connection: ", err.Error())
-		return err
-	}
-	return nil
+	return err
 }
 
 func main() {
@@ -40,7 +36,8 @@ func main() {
 	for {
 		err := processResponse(req)
 		if err != nil {
-			return
+			fmt.Println("Error processing request: ", err.Error())
+			os.Exit(1)
 		}
 	}
 }
