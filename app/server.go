@@ -6,6 +6,15 @@ import (
 	"os"
 )
 
+func processResponse(req net.Conn) error {
+	_, err := req.Write([]byte("+PONG\r\n"))
+	if err != nil {
+		fmt.Println("Error writing to connection: ", err.Error())
+		return err
+	}
+	return nil
+}
+
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
@@ -29,11 +38,9 @@ func main() {
 	}
 
 	for {
-		_, err = req.Write([]byte("+PONG\r\n"))
+		err := processResponse(req)
 		if err != nil {
-			fmt.Println("Error writing to connection: ", err.Error())
 			return
 		}
 	}
-
 }
