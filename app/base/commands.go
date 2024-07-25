@@ -1,6 +1,7 @@
 package base
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -53,6 +54,23 @@ func (r Redis) Echo(args []string) string {
 
 func (r Redis) Ping() string {
 	return "+PONG\r\n"
+}
+
+func (r Redis) REPLCONF(args []string) string {
+	if len(args) < 2 {
+		return "-ERR wrong number of arguments for 'replconf' command\r\n"
+	}
+	if args[0] == "listening-port" {
+		port, lErr := strconv.Atoi(args[1])
+		if lErr != nil {
+			return "-ERR invalid port number\r\n"
+		}
+		fmt.Println("Listening port updated to", port)
+		return "+OK\r\n"
+	} else if args[0] == "capa" && args[1] == "psync2" {
+		return "+OK\r\n"
+	}
+	return "-ERR invalid argument for 'replconf' command\r\n"
 }
 
 func (r Redis) Info(args []string) string {

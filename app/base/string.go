@@ -32,22 +32,27 @@ func (r *RedisStringBuilder) BulkStringEncode() string {
 }
 
 type RequestBuilder struct {
-	Lines []string
+	lines []string
 }
 
 func NewRequestBuilder() RequestBuilder {
 	return RequestBuilder{
-		Lines: make([]string, 0),
+		lines: make([]string, 0),
 	}
 }
+
+func (r *RequestBuilder) Reset() {
+	r.lines = make([]string, 0)
+}
+
 func (r *RequestBuilder) AddLine(line string) {
-	r.Lines = append(r.Lines, line)
+	r.lines = append(r.lines, line)
 }
 
 func (r *RequestBuilder) String() string {
 	rsb := NewRedisStringBuilder()
-	rsb.AddLine("*" + strconv.Itoa(len(r.Lines)))
-	for _, line := range r.Lines {
+	rsb.AddLine("*" + strconv.Itoa(len(r.lines)))
+	for _, line := range r.lines {
 		rsb.AddLine("$" + strconv.Itoa(len(line)))
 		rsb.AddLine(line)
 	}

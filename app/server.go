@@ -124,6 +124,8 @@ func processResponse(req net.Conn) error {
 		val = redis.Get(args)
 	} else if command == "INFO" {
 		val = redis.Info(args)
+	} else if command == "REPLCONF" {
+		val = redis.REPLCONF(args)
 	} else {
 		val = "-ERR unknown command '" + command + "'\r\n"
 	}

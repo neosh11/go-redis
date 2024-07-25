@@ -3,6 +3,7 @@ package base
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -56,22 +57,40 @@ func (r Redis) ConnectToMaster() {
 
 	// send a PING to the master
 	r.SendPingToMaster(conn)
+	r.SendReplConfToMaster(conn)
 }
 
 func (r Redis) SendPingToMaster(conn net.Conn) {
 	rb := NewRequestBuilder()
 	rb.AddLine("PING")
-	_, err := conn.Write(rb.Bytes())
+	r.SendBytesToMaster(conn, rb.Bytes())
+}
+
+func (r Redis) SendReplConfToMaster(conn net.Conn) {
+	rb := NewRequestBuilder()
+	rb.AddLine("REPLCONF")
+	rb.AddLine("listening-port")
+	rb.AddLine(strconv.Itoa(r.Config.Port))
+
+	r.SendBytesToMaster(conn, rb.Bytes())
+
+	rb.Reset()
+	rb.AddLine("REPLCONF")
+	rb.AddLine("capa")
+	rb.AddLine("psync2")
+
+	r.SendBytesToMaster(conn, rb.Bytes())
+}
+
+func (r Redis) SendBytesToMaster(conn net.Conn, message []byte) {
+	_, err := conn.Write(message)
 	if err != nil {
 		panic(err)
 	}
-
 	response := make([]byte, 1024)
-
 	resLen, err := conn.Read(response)
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Sent PING to master", string(response[:resLen]))
+	fmt.Println("Response from master: ", string(response[:resLen]))
 }
