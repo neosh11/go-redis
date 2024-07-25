@@ -2,18 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/codecrafters-io/redis-starter-go/app/base"
 	"net"
 	"os"
 	"strconv"
-	"time"
 )
 
-type Value struct {
-	value  string
-	expiry int
-}
-
-var memory = make(map[string]Value)
+var redis *base.Redis
 
 func getEndOfLine(startingIndex int, data []byte) (int, error) {
 	index := startingIndex
@@ -117,58 +112,24 @@ func processResponse(req net.Conn) error {
 		return err
 	}
 
+	val := ""
 	if command == "PING" {
 		_, err = req.Write([]byte("+PONG\r\n"))
 	} else if command == "ECHO" {
-		if len(args) == 0 {
-			_, err = req.Write([]byte("$0\r\n\r\n"))
-		} else {
-			_, err = req.Write([]byte("$" + strconv.Itoa(len(args[0])) + "\r\n" + args[0] + "\r\n"))
-		}
+		val = redis.Echo(args)
 	} else if command == "SET" {
-		// check first 2 arguments
-		if len(args) < 2 {
-			_, err = req.Write([]byte("-ERR wrong number of arguments for 'set' command\r\n"))
-			return err
-		}
-		expiry := -1
-		if len(args) >= 4 && args[2] == "px" {
-			ex, lErr := strconv.Atoi(args[3])
-			if lErr != nil {
-				_, err = req.Write([]byte("-ERR invalid expiry value\r\n"))
-				return err
-			}
-			expiry = int((int64)(time.Now().UnixMilli())) + ex
-		}
-		memory[args[0]] = Value{
-			value:  args[1],
-			expiry: expiry,
-		}
-		_, err = req.Write([]byte("+OK\r\n"))
+		val = redis.Set(args)
 	} else if command == "GET" {
-		if len(args) < 1 {
-			_, err = req.Write([]byte("-ERR wrong number of arguments for 'get' command\r\n"))
-			return err
-		}
-		value, ok := memory[args[0]]
-		if !ok {
-			_, err = req.Write([]byte("$-1\r\n"))
-		} else {
-			if value.expiry != -1 {
-				fmt.Println("Expiry: ", value.expiry, " Time: ", int((int64)(time.Now().UnixMilli())))
-				if value.expiry < int((int64)(time.Now().UnixMilli())) {
-					delete(memory, args[0])
-					_, err = req.Write([]byte("$-1\r\n"))
-					if err != nil {
-						return err
-					}
-					return nil
-				}
-			}
-			_, err = req.Write([]byte("$" + strconv.Itoa(len(value.value)) + "\r\n" + value.value + "\r\n"))
-		}
+		val = redis.Get(args)
+	} else if command == "INFO" {
+		val = redis.Info(args)
 	} else {
-		_, err = req.Write([]byte("-ERR unknown command '" + command + "'\r\n"))
+		val = "-ERR unknown command '" + command + "'\r\n"
+	}
+
+	_, err = req.Write([]byte(val))
+	if err != nil {
+		return err
 	}
 	return err
 }
@@ -190,9 +151,11 @@ func handleConnection(req net.Conn) {
 }
 
 func main() {
+
 	// get port from command line --port flag
 	port := "6379"
 	flags := os.Args[1:]
+
 	if len(flags) > 0 && flags[0] == "--port" {
 		if len(flags) < 2 {
 			fmt.Println("Missing port number")
@@ -200,6 +163,7 @@ func main() {
 		}
 		port = flags[1]
 	}
+	redis = base.NewRedis(port)
 	fmt.Println("Logs from your program will appear here!")
 	l, err := net.Listen("tcp", "0.0.0.0:"+port)
 	if err != nil {
