@@ -127,7 +127,7 @@ func processResponse(req net.Conn) error {
 	} else if command == "REPLCONF" {
 		val = redis.REPLCONF(args)
 	} else if command == "PSYNC" {
-		val = redis.PSYNC(args)
+		val = redis.PSYNC(args, req)
 	} else {
 		val = "-ERR unknown command '" + command + "'\r\n"
 	}

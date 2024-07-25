@@ -72,14 +72,12 @@ func (r Redis) SendReplConfToMaster(conn net.Conn) {
 	rb.AddLine("REPLCONF")
 	rb.AddLine("listening-port")
 	rb.AddLine(strconv.Itoa(r.Config.Port))
-
 	r.SendBytesToMaster(conn, rb.Bytes())
 
 	rb.Reset()
 	rb.AddLine("REPLCONF")
 	rb.AddLine("capa")
 	rb.AddLine("psync2")
-
 	r.SendBytesToMaster(conn, rb.Bytes())
 }
 
@@ -89,6 +87,13 @@ func (r Redis) SendPsyncToMaster(conn net.Conn) {
 	rb.AddLine("?")
 	rb.AddLine("-1")
 	r.SendBytesToMaster(conn, rb.Bytes())
+
+	// fetch the RDB
+	file := make([]byte, 1024)
+	_, err := conn.Read(file)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (r Redis) SendBytesToMaster(conn net.Conn, message []byte) {
