@@ -5,14 +5,19 @@ type KvValue struct {
 	Expiry int
 }
 
-type Redis struct {
-	Memory map[string]KvValue
-	port   string
+type RedisConfig struct {
+	Port      string
+	ReplicaOf string
 }
 
-func NewRedis(port string) *Redis {
+type Redis struct {
+	Memory map[string]KvValue
+	Config RedisConfig
+}
+
+func NewRedis(config *RedisConfig) *Redis {
 	return &Redis{
 		Memory: make(map[string]KvValue),
-		port:   port,
+		Config: *config,
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/codecrafters-io/redis-starter-go/app/base"
+	"github.com/codecrafters-io/redis-starter-go/app/cli"
 	"net"
 	"os"
 	"strconv"
@@ -151,23 +152,12 @@ func handleConnection(req net.Conn) {
 }
 
 func main() {
-
-	// get port from command line --port flag
-	port := "6379"
-	flags := os.Args[1:]
-
-	if len(flags) > 0 && flags[0] == "--port" {
-		if len(flags) < 2 {
-			fmt.Println("Missing port number")
-			os.Exit(1)
-		}
-		port = flags[1]
-	}
-	redis = base.NewRedis(port)
+	config := cli.GetRedisConfig()
+	redis = base.NewRedis(config)
 	fmt.Println("Logs from your program will appear here!")
-	l, err := net.Listen("tcp", "0.0.0.0:"+port)
+	l, err := net.Listen("tcp", "0.0.0.0:"+config.Port)
 	if err != nil {
-		fmt.Println("Failed to bind to port", port)
+		fmt.Println("Failed to bind to port", config.Port)
 		os.Exit(1)
 	}
 	// Close the listener when the application closes.

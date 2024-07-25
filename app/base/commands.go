@@ -67,10 +67,12 @@ func (r Redis) Info(args []string) string {
 		return "-ERR wrong number of arguments for 'info' command\r\n"
 	}
 	if args[0] == "replication" {
-		return BulkStringEncode("# Replication\r\nrole:master\r\n")
-
+		role := "master"
+		if r.Config.ReplicaOf != "" {
+			role = "slave"
+		}
+		return BulkStringEncode("# Replication\r\nrole:" + role + "\r\n")
 	} else {
 		return "-ERR invalid argument for 'info' command\r\n"
 	}
-
 }
