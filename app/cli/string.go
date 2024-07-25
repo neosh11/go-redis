@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/codecrafters-io/redis-starter-go/app/base"
-	uuid2 "github.com/google/uuid"
 	"log"
 	"os"
 	"strconv"
@@ -48,7 +47,7 @@ func GetRedisConfig() *base.RedisConfig {
 	return &base.RedisConfig{
 		Port:              port,
 		ReplicaOf:         replicaOf,
-		ReplicationId:     "neo-" + uuid2.New().String(),
+		ReplicationId:     "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
 		ReplicationOffset: 0,
 	}
 }

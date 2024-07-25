@@ -78,7 +78,8 @@ func (r Redis) PSYNC(args []string) string {
 		return "-ERR wrong number of arguments for 'psync' command\r\n"
 	}
 	if args[0] == "?" && args[1] == "-1" {
-		return "+OK\r\n"
+		resp := "+FULLRESYNC " + r.Config.ReplicationId + " 0"
+		return BulkStringEncode(resp)
 	}
 	return "-ERR invalid argument for 'psync' command\r\n" + args[0] + args[1]
 }
