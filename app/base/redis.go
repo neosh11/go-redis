@@ -6,8 +6,10 @@ type KvValue struct {
 }
 
 type RedisConfig struct {
-	Port      string
-	ReplicaOf string
+	Port              int
+	ReplicaOf         string
+	ReplicationId     string
+	ReplicationOffset int
 }
 
 type Redis struct {

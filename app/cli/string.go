@@ -2,8 +2,10 @@ package cli
 
 import (
 	"github.com/codecrafters-io/redis-starter-go/app/base"
+	uuid2 "github.com/google/uuid"
 	"log"
 	"os"
+	"strconv"
 )
 
 type Flag string
@@ -14,13 +16,18 @@ func GetRedisConfig() *base.RedisConfig {
 	var data = os.Args[1:]
 	var index = 0
 
-	port := "6379"
+	port := 6379
 	replicaOf := ""
 
 	for index < len(data) {
 		if data[index] == "--port" {
 			if index+1 < len(data) {
-				port = data[index+1]
+				portStr := data[index+1]
+				lPort, err := strconv.Atoi(portStr)
+				if err != nil {
+					log.Panic("Invalid port")
+				}
+				port = lPort
 				index += 2
 			} else {
 				log.Panic("Invalid port")
@@ -37,8 +44,11 @@ func GetRedisConfig() *base.RedisConfig {
 		}
 	}
 
+	// generate a UUID for replication id
 	return &base.RedisConfig{
-		Port:      port,
-		ReplicaOf: replicaOf,
+		Port:              port,
+		ReplicaOf:         replicaOf,
+		ReplicationId:     "neo-" + uuid2.New().String(),
+		ReplicationOffset: 0,
 	}
 }

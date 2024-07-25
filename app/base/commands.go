@@ -5,13 +5,6 @@ import (
 	"time"
 )
 
-func BulkStringEncode(s string) string {
-	return "$" + strconv.Itoa(len(s)) + "\r\n" + s + "\r\n"
-}
-func BulkStringNil() string {
-	return "$-1\r\n"
-}
-
 func (r Redis) Set(args []string) string {
 	// check first 2 arguments
 	if len(args) < 2 {
@@ -67,11 +60,19 @@ func (r Redis) Info(args []string) string {
 		return "-ERR wrong number of arguments for 'info' command\r\n"
 	}
 	if args[0] == "replication" {
-		role := "master"
-		if r.Config.ReplicaOf != "" {
-			role = "slave"
+		responseBuilder := NewResponseBuilder()
+		responseBuilder.AddLine("# Replication")
+		if r.Config.ReplicaOf == "" {
+			responseBuilder.AddLine("role:master")
+			responseBuilder.AddLine("master_replid:" + r.Config.ReplicationId)
+			responseBuilder.AddLine("master_repl_offset:" + strconv.Itoa(r.Config.ReplicationOffset))
+			return BulkStringEncode(responseBuilder.String())
+
+		} else {
+			responseBuilder.AddLine("role:slave")
+			return BulkStringEncode(responseBuilder.String())
 		}
-		return BulkStringEncode("# Replication\r\nrole:" + role + "\r\n")
+
 	} else {
 		return "-ERR invalid argument for 'info' command\r\n"
 	}

@@ -155,7 +155,7 @@ func main() {
 	config := cli.GetRedisConfig()
 	redis = base.NewRedis(config)
 	fmt.Println("Logs from your program will appear here!")
-	l, err := net.Listen("tcp", "0.0.0.0:"+config.Port)
+	l, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(config.Port))
 	if err != nil {
 		fmt.Println("Failed to bind to port", config.Port)
 		os.Exit(1)
