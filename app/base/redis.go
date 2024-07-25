@@ -58,6 +58,7 @@ func (r Redis) ConnectToMaster() {
 	// send a PING to the master
 	r.SendPingToMaster(conn)
 	r.SendReplConfToMaster(conn)
+	r.SendPsyncToMaster(conn)
 }
 
 func (r Redis) SendPingToMaster(conn net.Conn) {
@@ -79,6 +80,14 @@ func (r Redis) SendReplConfToMaster(conn net.Conn) {
 	rb.AddLine("capa")
 	rb.AddLine("psync2")
 
+	r.SendBytesToMaster(conn, rb.Bytes())
+}
+
+func (r Redis) SendPsyncToMaster(conn net.Conn) {
+	rb := NewRequestBuilder()
+	rb.AddLine("PSYNC")
+	rb.AddLine("?")
+	rb.AddLine("-1")
 	r.SendBytesToMaster(conn, rb.Bytes())
 }
 

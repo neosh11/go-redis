@@ -73,6 +73,16 @@ func (r Redis) REPLCONF(args []string) string {
 	return "-ERR invalid argument for 'replconf' command\r\n"
 }
 
+func (r Redis) PSYNC(args []string) string {
+	if len(args) < 2 {
+		return "-ERR wrong number of arguments for 'psync' command\r\n"
+	}
+	if args[0] == "?" && args[1] == "-1" {
+		return "+OK\r\n"
+	}
+	return "-ERR invalid argument for 'psync' command\r\n" + args[0] + args[1]
+}
+
 func (r Redis) Info(args []string) string {
 	if len(args) < 1 {
 		return "-ERR wrong number of arguments for 'info' command\r\n"
