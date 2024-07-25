@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/codecrafters-io/redis-starter-go/app/base"
 	"log"
+	"net"
 	"os"
 	"strconv"
 )
@@ -49,5 +50,6 @@ func GetRedisConfig() *base.RedisConfig {
 		ReplicaOf:         replicaOf,
 		ReplicationId:     "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
 		ReplicationOffset: 0,
+		Connections:       make(map[string]net.Conn),
 	}
 }

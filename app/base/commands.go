@@ -75,27 +75,29 @@ func (r Redis) REPLCONF(args []string) string {
 	return "-ERR invalid argument for 'replconf' command\r\n"
 }
 
-func (r Redis) PSYNC(args []string, req net.Conn) string {
+func (r Redis) PSYNC(args []string, req net.Conn) []byte {
 	if len(args) < 2 {
-		return "-ERR wrong number of arguments for 'psync' command\r\n"
+		return []byte("-ERR wrong number of arguments for 'psync' command\r\n")
 	}
 	if args[0] == "?" && args[1] == "-1" {
 		resp := "+FULLRESYNC " + r.Config.ReplicationId + " 0"
 		_, err := req.Write([]byte(BulkStringEncode(resp)))
-
 		if err != nil {
-			return "- Err writing to master failed"
+			return []byte("- Err writing to master failed")
 		}
 		// send an RDB dump to the replica
 		base64 := "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 		// convert the base64 string to bytes
 		rdbDump, err := base642.StdEncoding.DecodeString(base64)
 		if err != nil {
-			return "- Err decoding base64 string"
+			return []byte("- Err decoding base64 string")
 		}
-		return "$" + strconv.Itoa(len(rdbDump)) + "\r\n" + string(rdbDump)
+		rdb := []byte("$" + strconv.Itoa(len(rdbDump)) + "\r\n")
+		// add rdbDump
+		rdb = append(rdb, rdbDump...)
+		return rdb
 	}
-	return "-ERR invalid argument for 'psync' command\r\n" + args[0] + args[1]
+	return []byte("-ERR invalid argument for 'psync' command\r\n" + args[0] + args[1])
 }
 
 func (r Redis) Info(args []string) string {
