@@ -60,7 +60,7 @@ func (r Redis) Info(args []string) string {
 		return "-ERR wrong number of arguments for 'info' command\r\n"
 	}
 	if args[0] == "replication" {
-		responseBuilder := NewResponseBuilder()
+		responseBuilder := NewRedisStringBuilder()
 		responseBuilder.AddLine("# Replication")
 		if r.Config.ReplicaOf == "" {
 			responseBuilder.AddLine("role:master")

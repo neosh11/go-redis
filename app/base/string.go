@@ -9,24 +9,50 @@ func BulkStringNil() string {
 	return "$-1\r\n"
 }
 
-type ResponseBuilder struct {
+type RedisStringBuilder struct {
 	value string
 }
 
-func NewResponseBuilder() ResponseBuilder {
-	return ResponseBuilder{
+func NewRedisStringBuilder() RedisStringBuilder {
+	return RedisStringBuilder{
 		value: "",
 	}
 }
 
-func (r *ResponseBuilder) AddLine(line string) {
+func (r *RedisStringBuilder) AddLine(line string) {
 	r.value += line + "\r\n"
 }
 
-func (r *ResponseBuilder) String() string {
+func (r *RedisStringBuilder) String() string {
 	return r.value
 }
 
-func (r *ResponseBuilder) BulkStringEncode() string {
+func (r *RedisStringBuilder) BulkStringEncode() string {
 	return BulkStringEncode(r.value)
+}
+
+type RequestBuilder struct {
+	Lines []string
+}
+
+func NewRequestBuilder() RequestBuilder {
+	return RequestBuilder{
+		Lines: make([]string, 0),
+	}
+}
+func (r *RequestBuilder) AddLine(line string) {
+	r.Lines = append(r.Lines, line)
+}
+
+func (r *RequestBuilder) String() string {
+	rsb := NewRedisStringBuilder()
+	rsb.AddLine("*" + strconv.Itoa(len(r.Lines)))
+	for _, line := range r.Lines {
+		rsb.AddLine("$" + strconv.Itoa(len(line)))
+		rsb.AddLine(line)
+	}
+	return rsb.String()
+}
+func (r *RequestBuilder) Bytes() []byte {
+	return []byte(r.String())
 }
