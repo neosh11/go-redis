@@ -20,7 +20,7 @@ func handleConnection(req net.Conn) {
 		}
 	}()
 	for {
-		err := redis.ProcessResponse(req, false)
+		err := redis.ProcessIncomingMessage(req, false)
 		if err != nil {
 			fmt.Println("Error processing request: ", err.Error())
 			return

@@ -1,6 +1,7 @@
 package base
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"strconv"
@@ -88,13 +89,12 @@ func (r Redis) HandleMasterConnection(conn net.Conn) {
 			panic(err)
 		}
 	}(conn)
-	for {
-		err := r.ProcessResponse(conn, true)
-		if err != nil {
-			fmt.Println("Error processing request: ", err.Error())
-			return
-		}
+	err := r.ProcessIncomingMessage(conn, true)
+	if err != nil {
+		fmt.Println("Error processing request: ", err.Error())
+		return
 	}
+
 }
 func getEndOfLine(startingIndex int, data []byte) (int, error) {
 	index := startingIndex
@@ -133,7 +133,7 @@ func processParameter(startIndex int, data []byte) (value string, EOL int, err e
 	return string(data[sizeEOL+1 : EOL-1]), EOL, nil
 }
 
-func redisProtocolParser(data []byte) (command string, args []string, err error) {
+func redisProtocolParser(data []byte) (command string, args []string, EOL int, err error) {
 	//*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
 	//	Read the first line to get the number of arguments
 	// check if the first character is *
@@ -142,7 +142,7 @@ func redisProtocolParser(data []byte) (command string, args []string, err error)
 		return
 	}
 
-	EOL, err := getEndOfLine(1, data)
+	EOL, err = getEndOfLine(1, data)
 	if err != nil {
 		err = fmt.Errorf("Invalid data - EOL1")
 		return
@@ -184,19 +184,56 @@ func redisProtocolParser(data []byte) (command string, args []string, err error)
 	return
 }
 
-func (r Redis) ProcessResponse(req net.Conn, silent bool) error {
+func (r Redis) ProcessIncomingMessage(req net.Conn, silent bool) error {
 	// read the data from the connection
-	data := make([]byte, 1024)
-	read, err := req.Read(data)
-	if err != nil {
-		return err
+	reader := bufio.NewReader(req)
+	for {
+		data, _, err := reader.ReadLine()
+		data = append(data, "\r\n"...)
+		if err != nil {
+			return err
+		}
+		// check it starts with *
+		if len(data) == 0 {
+			break
+		}
+		if data[0] != '*' {
+			return fmt.Errorf("Invalid data", string(data))
+		}
+		// check number of arguments
+		numbParams := string(data[1 : len(data)-2])
+		numbParamsInt, err := strconv.Atoi(numbParams)
+		if err != nil {
+			return fmt.Errorf("Invalid data", numbParams)
+		}
+
+		//read the next numbParamsInt lines
+		for i := 0; i < numbParamsInt*2; i++ {
+			line, _, err := reader.ReadLine()
+			if err != nil {
+				return err
+			}
+			line = append(line, "\r\n"...)
+			data = append(data, line...)
+		}
+
+		// process the data
+		_, err = r.ProcessCommand(req, data, silent)
+		if err != nil {
+			return err
+		}
 	}
 
-	fmt.Println("Command: ", string(data[:read]))
+	return nil
+}
 
-	command, args, err := redisProtocolParser(data[:read])
+func (r Redis) ProcessCommand(req net.Conn, data []byte, silent bool) (EOL int, returnEror error) {
+
+	fmt.Println("Command: ", string(data))
+
+	command, args, EOL, err := redisProtocolParser(data)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	val := ""
@@ -219,11 +256,11 @@ func (r Redis) ProcessResponse(req net.Conn, silent bool) error {
 			fmt.Println("Error writing to connection: ", err.Error())
 		}
 		r.AddConnection(req)
-		return err
+		return EOL, err
 	} else if command == "PSYNC" {
 		bytes := r.PSYNC(args, req)
 		_, err = req.Write(bytes)
-		return err
+		return EOL, err
 	} else {
 		val = "-ERR unknown command '" + command + "'\r\n"
 	}
@@ -231,14 +268,14 @@ func (r Redis) ProcessResponse(req net.Conn, silent bool) error {
 	if !silent {
 		_, err = req.Write([]byte(val))
 		if replicate {
-			r.Replicate(data[:read])
+			r.Replicate(data)
 		}
 	}
 
 	if err != nil {
-		return err
+		return EOL, err
 	}
-	return err
+	return EOL, err
 }
 
 func (r Redis) SendPingToMaster(conn net.Conn) {
@@ -266,7 +303,30 @@ func (r Redis) SendPsyncToMaster(conn net.Conn) {
 	rb.AddLine("PSYNC")
 	rb.AddLine("?")
 	rb.AddLine("-1")
-	data := r.SendBytesToMaster(conn, rb.Bytes())
+
+	_, err := conn.Write(rb.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	reader := bufio.NewReader(conn)
+	// $
+	data, _, err := reader.ReadLine()
+	// read the next bytesToReadInt bytes
+	data, _, err = reader.ReadLine()
+
+	data, _, err = reader.ReadLine()
+	bytesToRead := data[1:]
+
+	bytesToReadInt, err := strconv.Atoi(string(bytesToRead))
+
+	// read the next bytesToReadInt bytes
+	data = make([]byte, bytesToReadInt)
+	_, err := reader.Read(data)
+
+	if err != nil {
+		fmt.Println("Error reading from master: ", err.Error())
+	}
+
 	fmt.Println("RDB dump: ", string(data))
 }
 
