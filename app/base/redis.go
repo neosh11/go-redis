@@ -321,7 +321,7 @@ func (r Redis) SendPsyncToMaster(conn net.Conn) {
 
 	// read the next bytesToReadInt bytes
 	data = make([]byte, bytesToReadInt)
-	_, err := reader.Read(data)
+	_, err = reader.Read(data)
 
 	if err != nil {
 		fmt.Println("Error reading from master: ", err.Error())
